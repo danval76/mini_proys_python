@@ -1,5 +1,4 @@
-#ejemplo Pop
-# Muestra cómo usar el método .pop() en listas de Python
+#ejemplo Pop Muestra cómo usar el método .pop() en listas de Python
 
 
 # Lista inicial
