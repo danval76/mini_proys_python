@@ -1,6 +1,7 @@
 #Ejemplo de remover un elemento de una lista en Python
 
 # Lista inicial
+# Creamos una lista con elementos repetidos
 colores = ["rojo", "verde", "azul", "rojo"] 
 print(f"Inicio: {colores}") # Salida: ['rojo', 'verde', 'azul', 'rojo']
 
