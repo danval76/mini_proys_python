@@ -6,4 +6,6 @@ for i in range(len(puntuaciones)):
     puntuaciones[i] = puntuaciones[i] + 1 
 # puntuaciones ahora es [11, 6, 9]
 
-print(f"{puntuaciones}")  # Salida: [11, 6, 9]
+print(f"{puntuaciones}")  # Debe imprimir de Salida: [11, 6, 9]
+# Fin del programa
+
