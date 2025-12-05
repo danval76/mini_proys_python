@@ -6,7 +6,7 @@ compra = ["pan", "leche", "huevos"]
 print(f"Inicio: {compra}") # Salida: ['pan', 'leche', 'huevos']
 
 # Queremos que "mantequilla" vaya a la posición 1 (antes de "leche")
-compra.insert(1, "mantequilla")
+compra.insert(0, "mantequilla")
 
 # Imprimimos el contenido después de usar insert
 print(f"Después de insert(): {compra}") # Salida: ['pan', 'mantequilla', 'leche', 'huevos']
