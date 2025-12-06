@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polygon Bounce Animation</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
+        canvas {
+            display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+        }
+        h1 {
+            font-size: 1.2rem;
+            margin: 0;
+            opacity: 0.8;
+        }
+        p {
+            font-size: 0.9rem;
+            opacity: 0.6;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <h1 id="stats">Sides: 3 | Speed: 4.0</h1>
+        <p>Ball adds a side and speeds up on every bounce.</p>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const uiStats = document.getElementById('stats');
+
+        // Configuration
+        let width, height, centerX, centerY;
+        const polyRadius = 250; // Size of the shape
+        const ballRadius = 8;
+        
+        // State
+        let sides = 3;
+        let speed = 4;
+        let ball = { x: 0, y: 0, vx: 0, vy: 0 };
+        let rotation = 0; // Slowly rotate the polygon for visual flair
+        let colorHue = 0;
+        
+        // Collision cooldown to prevent "sticking" to a wall
+        let justHit = false; 
+
+        function init() {
+            resize();
+            window.addEventListener('resize', resize);
+            resetBall();
+            requestAnimationFrame(loop);
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+        }
+
+        function resetBall() {
+            ball.x = centerX;
+            ball.y = centerY;
+            // Random start angle
+            const angle = Math.random() * Math.PI * 2;
+            ball.vx = Math.cos(angle) * speed;
+            ball.vy = Math.sin(angle) * speed;
+        }
+
+        function getPolyVertices(n, r, cx, cy, rot) {
+            const vertices = [];
+            for (let i = 0; i < n; i++) {
+                const theta = rot + (i * 2 * Math.PI) / n;
+                const x = cx + r * Math.cos(theta);
+                const y = cy + r * Math.sin(theta);
+                vertices.push({ x, y });
+            }
+            return vertices;
+        }
+
+        // Distance from point (px, py) to line segment (p1, p2)
+        function distToSegment(px, py, p1x, p1y, p2x, p2y) {
+            const l2 = (p2x - p1x) ** 2 + (p2y - p1y) ** 2;
+            if (l2 === 0) return Math.hypot(px - p1x, py - p1y);
+            let t = ((px - p1x) * (p2x - p1x) + (py - p1y) * (p2y - p1y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return {
+                dist: Math.hypot(px - (p1x + t * (p2x - p1x)), py - (p1y + t * (p2y - p1y))),
+                closestX: p1x + t * (p2x - p1x),
+                closestY: p1y + t * (p2y - p1y)
+            };
+        }
+
+        function update() {
+            // Update ball position
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+
+            // Slow rotation of the polygon
+            rotation += 0.002;
+            colorHue += 0.5;
+
+            const vertices = getPolyVertices(sides, polyRadius, centerX, centerY, rotation);
+
+            // Collision Detection
+            if (!justHit) {
+                for (let i = 0; i < vertices.length; i++) {
+                    const p1 = vertices[i];
+                    const p2 = vertices[(i + 1) % vertices.length]; // Wrap around to first vertex
+
+                    const result = distToSegment(ball.x, ball.y, p1.x, p1.y, p2.x, p2.y);
+
+                    if (result.dist <= ballRadius) {
+                        // COLLISION DETECTED
+                        
+                        // 1. Calculate Normal Vector of the wall
+                        const dx = p2.x - p1.x;
+                        const dy = p2.y - p1.y;
+                        // Normal is (-dy, dx) normalized
+                        const len = Math.hypot(dx, dy);
+                        const nx = -dy / len;
+                        const ny = dx / len;
+
+                        // 2. Reflect velocity vector: V_new = V - 2(V . N)N
+                        const dot = ball.vx * nx + ball.vy * ny;
+                        ball.vx = ball.vx - 2 * dot * nx;
+                        ball.vy = ball.vy - 2 * dot * ny;
+
+                        // 3. Increase Speed
+                        speed += 0.5;
+                        // Normalize velocity to new speed to keep consistent acceleration
+                        const vLen = Math.hypot(ball.vx, ball.vy);
+                        ball.vx = (ball.vx / vLen) * speed;
+                        ball.vy = (ball.vy / vLen) * speed;
+
+                        // 4. Add Side
+                        sides++;
+
+                        // 5. Push ball out of wall slightly to prevent sticking
+                        ball.x = result.closestX + nx * (ballRadius + 1);
+                        ball.y = result.closestY + ny * (ballRadius + 1);
+
+                        // Update UI
+                        uiStats.innerText = `Sides: ${sides} | Speed: ${speed.toFixed(1)}`;
+
+                        justHit = true;
+                        setTimeout(() => justHit = false, 50); // Short cooldown
+                        break;
+                    }
+                }
+            }
+            
+            // Failsafe: If ball escapes (rare math error), reset
+            const distFromCenter = Math.hypot(ball.x - centerX, ball.y - centerY);
+            if (distFromCenter > polyRadius + 50) {
+                resetBall();
+            }
+        }
+
+        function draw() {
+            // Trail effect: Draw semi-transparent rectangle over previous frame
+            ctx.fillStyle = 'rgba(17, 17, 17, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+
+            const vertices = getPolyVertices(sides, polyRadius, centerX, centerY, rotation);
+            const dynamicColor = `hsl(${colorHue}, 70%, 50%)`;
+
+            // Draw Polygon
+            ctx.beginPath();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = dynamicColor;
+            ctx.moveTo(vertices[0].x, vertices[0].y);
+            for (let i = 1; i < vertices.length; i++) {
+                ctx.lineTo(vertices[i].x, vertices[i].y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+
+            // Draw Ball
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
